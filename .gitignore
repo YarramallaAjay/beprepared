@@ -8,6 +8,7 @@
 !.yarn/patches
 !.yarn/plugins
 !.yarn/releases
+<<<<<<< HEAD
 !.yarn/versions
 
 # testing
@@ -39,3 +40,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+=======
+!.yarn/sdks
+!.yarn/versions
+
+# Vite files
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+.vite/
+>>>>>>> 722a491512b0972718fa5a50694a15c3aeb203f1
