@@ -114,7 +114,8 @@ const BASE_QUESTIONS: InterviewQuestion[] = [
  * Generate adaptive follow-up questions based on previous answers and character doc.
  */
 export async function generateAdaptiveQuestions(
-  state: InterviewState
+  state: InterviewState,
+  userId?: string
 ): Promise<InterviewQuestion[]> {
   const answersContext = Object.entries(state.answers)
     .map(([qId, answer]) => `- ${qId}: ${answer}`)
@@ -151,7 +152,7 @@ Based on their previous answers, generate questions that probe deeper into their
 Return JSON: { "questions": [{ "id": string, "question": string, "context": string, "options": [{ "label": string, "description": string, "evidence": string }], "category": string }] }`,
       },
     ],
-    { temperature: 0.8 }
+    { temperature: 0.8, userId }
   );
 
   return result.questions;
@@ -169,7 +170,8 @@ export function getBaseQuestions(): InterviewQuestion[] {
  */
 export async function analyzeInterviewAnswers(
   answers: Record<string, string>,
-  characterContext?: string
+  characterContext?: string,
+  userId?: string
 ): Promise<{
   suggested_role: string;
   suggested_tech_stack: string[];
@@ -194,5 +196,5 @@ export async function analyzeInterviewAnswers(
         characterContext ? `Character profile:\n${characterContext}\n\n` : ""
       }Return JSON: { "suggested_role": string, "suggested_tech_stack": [strings], "suggested_domains": [strings], "strengths": [strings], "weaknesses": [strings], "learning_style": string, "summary": string }`,
     },
-  ]);
+  ], { userId });
 }

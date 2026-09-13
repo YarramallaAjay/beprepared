@@ -23,7 +23,8 @@ export async function buildCharacterDocument(
   socialData: SocialData,
   interviewAnswers?: Record<string, string>,
   existingCharacter?: string,
-  profileContext?: ProfileContext
+  profileContext?: ProfileContext,
+  userId?: string
 ): Promise<string> {
   const dataStr = JSON.stringify(socialData, null, 2);
 
@@ -68,6 +69,6 @@ Be specific, cite evidence from their data, and be honest about gaps.`;
       { role: "system", content: CHARACTER_BUILDING_SYSTEM },
       { role: "user", content: prompt },
     ],
-    { temperature: 0.6, max_tokens: 2048 }
+    { temperature: 0.6, max_tokens: 2048, userId }
   );
 }

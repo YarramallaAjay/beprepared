@@ -39,7 +39,7 @@ export async function POST(request: Request) {
   }>("whatsapp_parsing", [
     { role: "system", content: WHATSAPP_PARSING_SYSTEM },
     { role: "user", content: body },
-  ]);
+  ], { userId });
 
   const today = new Date().toISOString().split("T")[0];
 

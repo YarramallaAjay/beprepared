@@ -1,0 +1,22 @@
+project:
+  name: my-project
+  rootPath: .
+orchestrator:
+  maxConcurrentAgents: 3
+  maxTotalBudgetUsd: 10
+  autoRetry: true
+  maxRetries: 2
+  validationEnabled: true
+database:
+  path: .orchestrator/data.db
+agents:
+  templates: []
+mcp:
+  servers: []
+git:
+  integrationBranch: main
+  worktreeDir: .orchestrator/worktrees
+  branchPrefix: orch/
+web:
+  port: 3847
+  host: localhost

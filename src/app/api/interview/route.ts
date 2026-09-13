@@ -5,6 +5,7 @@ import {
   getBaseQuestions,
   analyzeInterviewAnswers,
 } from "@/lib/ai/interview-engine";
+import { invalidateUserContext } from "@/lib/ai/user-context";
 
 // GET: Get interview questions (base + adaptive)
 export async function GET(request: Request) {
@@ -43,7 +44,7 @@ export async function GET(request: Request) {
       answers,
       currentStep: parseInt(searchParams.get("currentStep") || "1"),
       characterContext: charDoc?.content_md,
-    });
+    }, user.id);
 
     return NextResponse.json({ questions });
   } catch (err) {
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
       .single();
 
     // Analyze answers
-    const analysis = await analyzeInterviewAnswers(answers, charDoc?.content_md);
+    const analysis = await analyzeInterviewAnswers(answers, charDoc?.content_md, user.id);
 
     // Update profile with interview data + analysis
     const { error } = await supabase
@@ -96,6 +97,8 @@ export async function POST(request: Request) {
       .eq("id", user.id);
 
     if (error) throw error;
+
+    invalidateUserContext(user.id);
 
     return NextResponse.json({ analysis });
   } catch (err) {

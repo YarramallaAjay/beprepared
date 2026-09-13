@@ -82,7 +82,8 @@ export async function syncCharacter(userId: string): Promise<string> {
     socialData,
     userProfile?.interview_answers,
     existingDoc?.content_md,
-    profileContext
+    profileContext,
+    userId
   );
 
   // Save character document

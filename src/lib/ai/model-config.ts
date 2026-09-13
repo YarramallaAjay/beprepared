@@ -4,7 +4,8 @@ export type AIFeature =
   | "daily_plan"
   | "whatsapp_parsing"
   | "adaptive_followup"
-  | "character_building";
+  | "character_building"
+  | "agent_execution";
 
 export type ProviderName = "openrouter" | "gemini" | "groq" | "ollama";
 
@@ -58,6 +59,14 @@ export const MODEL_CONFIG: Record<AIFeature, ModelAssignment[]> = {
     { provider: "openrouter", model: "nvidia/nemotron-3-super-120b-a12b:free" },
     { provider: "groq", model: "openai/gpt-oss-120b", max_tokens: 900 },
     { provider: "gemini", model: "gemini-3.6-flash" },
+    { provider: "ollama", model: "gemma4:26b" },
+  ],
+  agent_execution: [
+    { provider: "openrouter", model: "nvidia/nemotron-ultra-253b-v1:free" },
+    { provider: "openrouter", model: "google/gemma-4-31b-it:free" },
+    { provider: "gemini", model: "gemini-3.8-flash" },
+    { provider: "gemini", model: "gemini-3.6-flash" },
+    { provider: "groq", model: "qwen/qwen3.8-27b", max_tokens: 900 },
     { provider: "ollama", model: "gemma4:26b" },
   ],
 };

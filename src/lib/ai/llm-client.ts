@@ -3,6 +3,14 @@ import { callOpenRouter } from "./providers/openrouter";
 import { callGemini } from "./providers/gemini";
 import { callGroq } from "./providers/groq";
 import { callOllama } from "./providers/ollama";
+import { getCachedResponse, setCachedResponse } from "./llm-cache";
+import {
+  canMakeRequest,
+  recordRequest,
+  markRequestStarted,
+  markRateLimited,
+} from "./rate-limiter";
+import { buildUserContext } from "./user-context";
 
 export interface LLMMessage {
   role: "system" | "user" | "assistant";
@@ -13,6 +21,7 @@ export interface LLMOptions {
   temperature?: number;
   max_tokens?: number;
   json_mode?: boolean;
+  userId?: string;
 }
 
 type ProviderCallFn = (
@@ -37,13 +46,19 @@ function isProviderAvailable(provider: ProviderName): boolean {
     case "groq":
       return !!process.env.GROQ_API_KEY;
     case "ollama":
-      // Ollama is always "available" -- it'll fail at call time if not running
       return true;
   }
 }
 
 function isRetryable(error: string): boolean {
-  return error.includes("429") || error.includes("503") || error.includes("rate") || error.includes("quota");
+  return (
+    error.includes("429") ||
+    error.includes("503") ||
+    error.includes("529") ||
+    error.includes("rate") ||
+    error.includes("quota") ||
+    error.includes("overloaded")
+  );
 }
 
 async function sleep(ms: number): Promise<void> {
@@ -51,14 +66,49 @@ async function sleep(ms: number): Promise<void> {
 }
 
 /**
+ * Inject user context into messages by prepending it to the system prompt.
+ */
+async function injectUserContext(
+  messages: LLMMessage[],
+  userId: string
+): Promise<LLMMessage[]> {
+  const context = await buildUserContext(userId);
+  const injected = [...messages];
+
+  const systemIdx = injected.findIndex((m) => m.role === "system");
+  if (systemIdx >= 0) {
+    injected[systemIdx] = {
+      ...injected[systemIdx],
+      content: `${context}\n\n${injected[systemIdx].content}`,
+    };
+  } else {
+    injected.unshift({ role: "system", content: context });
+  }
+
+  return injected;
+}
+
+/**
  * Call an LLM with automatic fallback through the provider chain.
- * For 429/503 errors, retries the same provider once after a delay before moving on.
+ * Integrates: user context injection, response caching, rate-limit-aware provider selection.
  */
 export async function callLLM(
   feature: AIFeature,
   messages: LLMMessage[],
   options?: LLMOptions
 ): Promise<string> {
+  // Inject user context if userId provided
+  let finalMessages = messages;
+  if (options?.userId) {
+    finalMessages = await injectUserContext(messages, options.userId);
+  }
+
+  // Check cache before making any provider calls
+  const cached = await getCachedResponse(feature, finalMessages);
+  if (cached) {
+    return cached;
+  }
+
   const assignments = MODEL_CONFIG[feature];
   const errors: { provider: string; model: string; error: string }[] = [];
 
@@ -68,6 +118,19 @@ export async function callLLM(
         provider: assignment.provider,
         model: assignment.model,
         error: "API key not configured",
+      });
+      continue;
+    }
+
+    // Check rate limiter before attempting
+    if (!canMakeRequest(assignment.provider, assignment.model)) {
+      console.warn(
+        `[LLM] Skipping ${assignment.provider}/${assignment.model} (rate limited)`
+      );
+      errors.push({
+        provider: assignment.provider,
+        model: assignment.model,
+        error: "Pre-emptively skipped (rate limited)",
       });
       continue;
     }
@@ -83,21 +146,31 @@ export async function callLLM(
     // Try up to 2 times (initial + 1 retry for rate limits)
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        const result = await fn(assignment.model, messages, callOptions);
+        markRequestStarted(assignment.provider, assignment.model);
+        const result = await fn(assignment.model, finalMessages, callOptions);
+        recordRequest(assignment.provider, assignment.model);
+
+        // Cache the successful response
+        await setCachedResponse(feature, finalMessages, result);
+
         return result;
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
 
-        if (attempt === 0 && isRetryable(message)) {
-          // Wait before retrying (longer for quota errors)
-          const delay = message.includes("quota") ? 10000 : 3000;
-          console.warn(
-            `[LLM] ${assignment.provider}/${assignment.model} rate-limited, retrying in ${delay}ms...`
-          );
-          await sleep(delay);
-          continue;
+        if (isRetryable(message)) {
+          markRateLimited(assignment.provider, assignment.model);
+
+          if (attempt === 0) {
+            const delay = message.includes("quota") ? 10000 : 3000;
+            console.warn(
+              `[LLM] ${assignment.provider}/${assignment.model} rate-limited, retrying in ${delay}ms...`
+            );
+            await sleep(delay);
+            continue;
+          }
         }
 
+        recordRequest(assignment.provider, assignment.model);
         errors.push({ provider: assignment.provider, model: assignment.model, error: message });
         console.warn(
           `[LLM] ${assignment.provider}/${assignment.model} failed: ${message}. Trying next...`

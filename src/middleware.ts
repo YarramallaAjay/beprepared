@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-const PUBLIC_ROUTES = ["/", "/login", "/api/webhooks", "/api/cron"];
+const PUBLIC_ROUTES = ["/", "/login", "/api/webhooks", "/api/cron", "/marketplace"];
 const ONBOARDING_ROUTES = ["/onboarding"];
 const AUTH_CALLBACK = "/api/auth/callback";
 

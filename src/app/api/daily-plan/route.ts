@@ -80,7 +80,8 @@ export async function POST() {
             2
           )}\n\nSelect items for today that fit within ${dailyMinutes} minutes. Mix content types. Return JSON: { "selected_ids": [item_ids], "reasoning": "brief explanation" }`,
         },
-      ]
+      ],
+      { userId: user.id }
     );
 
     // Create daily plan

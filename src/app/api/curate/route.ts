@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { curateContent } from "@/lib/ai/content-curator";
+import { invalidateUserContext } from "@/lib/ai/user-context";
 
 export async function POST() {
   const supabase = await createServerSupabaseClient();
@@ -47,7 +48,8 @@ export async function POST() {
       profile,
       charDoc?.content_md || null,
       sources || [],
-      people
+      people,
+      user.id
     );
 
     // Clear existing content items and insert new ones
@@ -72,6 +74,8 @@ export async function POST() {
       .insert(contentItems);
 
     if (insertError) throw insertError;
+
+    invalidateUserContext(user.id);
 
     return NextResponse.json({
       items_count: result.items.length,

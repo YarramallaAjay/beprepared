@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { syncCharacter } from "@/lib/character/character-sync";
+import { invalidateUserContext } from "@/lib/ai/user-context";
 
 export async function POST() {
   const supabase = await createServerSupabaseClient();
@@ -11,6 +12,7 @@ export async function POST() {
 
   try {
     const characterMd = await syncCharacter(user.id);
+    invalidateUserContext(user.id);
     return NextResponse.json({ character: characterMd });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Sync failed";
